@@ -1,0 +1,11 @@
+# built locally by run_pipeline.py
+warehouse.duckdb
+warehouse.duckdb.wal
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+.DS_Store
+.ipynb_checkpoints/
