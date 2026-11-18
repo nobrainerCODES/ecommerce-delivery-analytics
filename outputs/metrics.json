@@ -1,0 +1,152 @@
+{
+  "headline": {
+    "delivered_orders": 96470,
+    "late_orders": 6534.0,
+    "late_rate": 0.0677309007981755,
+    "avg_promised_days": 24.37273763864414,
+    "avg_actual_days": 12.496848761272934,
+    "median_promised_days": 24.0,
+    "median_actual_days": 10.0,
+    "avg_days_early_when_on_time": 13.510262853584772,
+    "reviewed_orders": 95824,
+    "avg_review": 4.155879529136751,
+    "avg_review_on_time": 4.290386055923885,
+    "avg_review_late": 2.270490518727472,
+    "one_star_rate_on_time": 0.0661874042686403,
+    "one_star_rate_late": 0.5376900172386774,
+    "one_star_reviews": 9351,
+    "one_star_reviews_from_late": 3431,
+    "share_of_one_stars_from_late": 0.3669126296652764,
+    "gmv_brl": 13220248.930011684,
+    "first_purchase": "2016-09-15",
+    "last_purchase": "2018-08-29"
+  },
+  "review_penalty": {
+    "n": 95824,
+    "late_penalty_stars": -1.3840735819527243,
+    "late_penalty_ci95": [
+      -1.434362764408021,
+      -1.3337843994974277
+    ],
+    "per_extra_day_stars": -0.02919709309194217,
+    "late_equals_this_many_extra_days": 47.40449939979476,
+    "r_squared": 0.17650487700135065,
+    "robustness_flexible_days_penalty": -1.2496166283003434,
+    "robustness_flexible_days_ci95": [
+      -1.3075723723105255,
+      -1.1916608842901613
+    ]
+  },
+  "repeat_purchase": {
+    "first_orders": 55196,
+    "repeat_rate_overall": 0.01971157330241322,
+    "repeat_rate_on_time": 0.019968175114491966,
+    "repeat_rate_late": 0.016102620087336244,
+    "controlled_effect_pts": -0.2410720795845053,
+    "controlled_effect_ci95_pts": [
+      -0.6822681347041593,
+      0.20012397553514863
+    ],
+    "p_value": 0.28419835508348257
+  },
+  "seller_habits": {
+    "sellers": 172,
+    "late_rate_corr": 0.23410755643796616,
+    "late_rate_corr_ci95": [
+      0.0875369526043513,
+      0.37075663983439344
+    ],
+    "late_rate_spearman": 0.35557933599427716,
+    "missed_ship_by_corr": 0.547483404426458,
+    "missed_ship_by_corr_ci95": [
+      0.43334779461048645,
+      0.6443341971977783
+    ],
+    "missed_ship_by_spearman": 0.6805961752415648
+  },
+  "formula_backtest": {
+    "days_needed_for_5pct_late": {
+      "Olist promise + buffer": 27.45826373313306,
+      "Route percentile rule": 27.765576520895564
+    },
+    "days_needed_for_6pct_late": {
+      "Olist promise + buffer": 25.745141875694433,
+      "Route percentile rule": 26.146210321687157
+    }
+  },
+  "holiday_vs_year_round": {
+    "buffer_days": 5,
+    "orders_2017": 43426,
+    "late_orders_2017": 2453,
+    "late_orders_with_holiday_buffer": 2003,
+    "late_orders_avoided_holiday": 450,
+    "avg_added_promise_days": 1.1246718555703956,
+    "late_orders_avoided_same_cost_year_round": 346.6824022475016
+  },
+  "handoff": {
+    "orders": 95194,
+    "missed_share": 0.0909616152278505,
+    "late_rate_missed": 0.2092620394964776,
+    "late_rate_on_time_handoff": 0.0544057317848269,
+    "late_rate_ratio": 3.846323404381416,
+    "late_orders": 6520,
+    "late_orders_if_every_handoff_on_time": 5709,
+    "late_orders_avoided": 811,
+    "share_of_late_avoided": 0.12438650306748467
+  },
+  "time_split": {
+    "late_avg_seller_days": 6.063141509032044,
+    "late_avg_carrier_days": 27.895432643149253,
+    "on_time_avg_seller_days": 3.030956840594997,
+    "on_time_avg_carrier_days": 8.002286748305135
+  },
+  "waves": {
+    "top3_months": [
+      "2018-03",
+      "2018-02",
+      "2017-11"
+    ],
+    "top3_share_of_late": 0.4833180287725742,
+    "months_with_orders": 20
+  },
+  "buffer_2018": {
+    "late_rate_0": 0.0772685071148416,
+    "late_rate_1": 0.0677378403471209,
+    "late_rate_2": 0.0613145877939253,
+    "late_rate_3": 0.055175549955473,
+    "avg_promised_days_0": 23.43812645660041,
+    "pts_per_day_first_3": 0.7364319053122865
+  },
+  "holiday_2017": {
+    "window_orders": 9768,
+    "window_late_rate": 0.1160933660933661,
+    "rest_of_2017_late_rate": 0.0391883059005288,
+    "window_late_rate_plus5": 0.07002457002457,
+    "window_late_orders": 1134,
+    "window_late_orders_plus5": 684
+  },
+  "sizing": {
+    "one_star_rate_gap": 0.4715026129700371,
+    "ceiling_if_no_late_orders": {
+      "late_orders_avoided": 6534.0,
+      "one_star_reviews_avoided": 3060.1678714746927,
+      "avg_rating_lift": 0.13680934425252783
+    },
+    "ship_by_compliance": {
+      "late_orders_avoided": 811.0,
+      "one_star_reviews_avoided": 379.8279987398188,
+      "avg_rating_lift": 0.01698077413357822
+    },
+    "holiday_buffer_5d": {
+      "late_orders_avoided": 450.0,
+      "one_star_reviews_avoided": 210.75536304922127,
+      "avg_rating_lift": 0.009422131146868308
+    },
+    "combined": {
+      "late_orders_avoided": 1223.0,
+      "one_star_reviews_avoided": 572.7862422426613,
+      "avg_rating_lift": 0.025607258650266536,
+      "share_of_late_avoided": 0.18717477808386898
+    }
+  }
+}

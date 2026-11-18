@@ -1,0 +1,3 @@
+missed_ship_by,orders,late_orders,late_rate,median_days_past_deadline,late_orders_if_on_time_handoff
+False,86535,4708.0,0.054405731784826945,,4708.0
+True,8659,1812.0,0.20926203949647765,1.0013888888888889,1001.0

@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Broken Promises: Delivery and Reviews at Olist</title>
+<meta name="description" content="Interactive analysis of 96,470 delivered orders from Olist, a Brazilian marketplace: how late deliveries drive bad reviews and what to fix first.">
+<style>
+  .viz-root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --ink-3: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --muted-fill: #d6d5ce;
+    --ring: rgba(11,11,11,0.10);
+    --s1: #2a78d6;
+    --s2: #eb6834;
+    --s1-wash: rgba(42,120,214,0.10);
+    --good: #006300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --ink-3: #898781;
+      --grid: #2c2c2a; --axis: #383835; --muted-fill: #4a4a46; --ring: rgba(255,255,255,0.10);
+      --s1: #3987e5; --s2: #d95926; --s1-wash: rgba(57,135,229,0.14); --good: #0ca30c;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --ink-3: #898781;
+    --grid: #2c2c2a; --axis: #383835; --muted-fill: #4a4a46; --ring: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s1-wash: rgba(57,135,229,0.14); --good: #0ca30c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body { background: #f9f9f7; }
+  @media (prefers-color-scheme: dark) { body { background: #0d0d0d; } }
+  .viz-root {
+    background: var(--page); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px; line-height: 1.5; min-height: 100vh;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 24px 64px; }
+  header h1 { font-size: 28px; line-height: 1.2; margin: 0 0 8px; font-weight: 650; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--ink-2); max-width: 760px; }
+  .links { margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px; }
+  a { color: var(--s1); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .filters {
+    display: flex; gap: 16px; align-items: center; flex-wrap: wrap;
+    margin: 28px 0 20px; padding: 12px 0; border-top: 1px solid var(--grid); border-bottom: 1px solid var(--grid);
+    position: sticky; top: 0; background: var(--page); z-index: 5;
+  }
+  .filters label { font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
+  select, button {
+    font: inherit; font-size: 14px; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--ring); border-radius: 8px; padding: 6px 10px; cursor: pointer;
+  }
+  .seg { display: inline-flex; border: 1px solid var(--ring); border-radius: 8px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; padding: 6px 12px; background: var(--surface); color: var(--ink-2); }
+  .seg button[aria-pressed="true"] { background: var(--s1-wash); color: var(--ink); font-weight: 600; }
+  .filters .scope { margin-left: auto; font-size: 13px; color: var(--ink-3); }
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 20px;
+    min-width: 0;
+  }
+  .span-12 { grid-column: span 12; } .span-8 { grid-column: span 8; } .span-7 { grid-column: span 7; }
+  .span-6 { grid-column: span 6; } .span-5 { grid-column: span 5; } .span-4 { grid-column: span 4; }
+  .span-3 { grid-column: span 3; }
+  @media (max-width: 900px) { .span-8,.span-7,.span-6,.span-5,.span-4 { grid-column: span 12; } .span-3 { grid-column: span 6; } }
+  .card h2 { font-size: 16px; margin: 0 0 2px; font-weight: 620; }
+  .card .sub { font-size: 13px; color: var(--ink-2); margin: 0 0 12px; }
+  .hero { display: flex; flex-direction: column; justify-content: center; }
+  .hero { gap: 18px; }
+  .hero-row { display: flex; align-items: center; gap: 16px; }
+  .hero .big { font-size: 56px; line-height: 1; font-weight: 650; letter-spacing: -0.02em; min-width: 150px; }
+  .hero .big-label { color: var(--ink-2); font-size: 15px; line-height: 1.35; }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .tiles { grid-column: span 12; } .hero .big { font-size: 44px; min-width: 120px; } }
+  .tile .label { font-size: 13px; color: var(--ink-2); }
+  .tile .value { font-size: 28px; font-weight: 620; margin-top: 4px; }
+  .tile .note { font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+  .key { display: inline-flex; align-items: center; gap: 6px; margin-right: 16px; font-size: 13px; color: var(--ink-2); }
+  .key i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+  .key i.line { height: 2px; width: 14px; border-radius: 1px; }
+  .legend { margin: -4px 0 8px; }
+  svg { display: block; overflow: visible; }
+  svg text { font-family: inherit; }
+  .axis text { fill: var(--ink-3); font-size: 11.5px; }
+  .tick-line { stroke: var(--grid); stroke-width: 1; }
+  .baseline { stroke: var(--axis); stroke-width: 1; }
+  .val { fill: var(--ink); font-size: 12px; font-weight: 600; }
+  .mark { cursor: default; transition: opacity .12s; }
+  .mark:hover, .mark:focus { opacity: .82; outline: none; }
+  .tip {
+    position: fixed; pointer-events: none; z-index: 20; background: var(--surface); color: var(--ink);
+    border: 1px solid var(--ring); border-radius: 8px; padding: 8px 10px; font-size: 13px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.12); opacity: 0; transition: opacity .08s; max-width: 260px;
+  }
+  .tip .t { color: var(--ink-2); font-size: 12px; margin-bottom: 4px; }
+  .tip .r { display: flex; align-items: center; gap: 8px; }
+  .tip .r b { font-weight: 650; }
+  .tip .r i { width: 12px; height: 2px; display: inline-block; }
+  .sim-top { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 8px; }
+  .sim-top .tile .value { font-size: 24px; }
+  input[type=range] { width: 100%; accent-color: var(--s1); }
+  .sim-control > span { white-space: nowrap; }
+  .sim-control { display: flex; gap: 12px; align-items: center; font-size: 14px; color: var(--ink-2); margin: 8px 0 4px; }
+  .sim-control output { font-weight: 650; color: var(--ink); min-width: 70px; }
+  .recs { counter-reset: rec; }
+  .rec h3 { font-size: 15px; margin: 0 0 6px; }
+  .rec h3::before { counter-increment: rec; content: counter(rec); display: inline-flex; width: 22px; height: 22px; border-radius: 11px;
+    background: var(--s1-wash); color: var(--s1); font-size: 12px; align-items: center; justify-content: center; margin-right: 8px; }
+  .rec p { margin: 0 0 8px; color: var(--ink-2); font-size: 14px; }
+  .rec .impact { font-size: 14px; color: var(--ink); }
+  .rec .impact b { font-weight: 650; }
+  details { margin-top: 10px; font-size: 13px; color: var(--ink-2); }
+  details summary { cursor: pointer; color: var(--s1); }
+  table { border-collapse: collapse; width: 100%; margin-top: 8px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--grid); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--ink-2); font-weight: 600; }
+  .notes ul { margin: 6px 0 0; padding-left: 18px; color: var(--ink-2); font-size: 14px; }
+  .notes li { margin-bottom: 6px; }
+  .section-title { grid-column: span 12; margin: 20px 0 -4px; font-size: 13px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  footer { margin-top: 32px; font-size: 13px; color: var(--ink-3); }
+  .empty { fill: var(--ink-3); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+<div class="wrap">
+  <header>
+    <h1>Broken Promises: what late deliveries cost a Brazilian marketplace</h1>
+    <p>An analysis of 96,470 delivered orders from Olist (Sept 2016 to Aug 2018). Customers do not grade how long they wait. They grade whether the order showed up by the date they were promised. This page shows where the promise breaks and what to fix first.</p>
+    <div class="links">
+      <a id="repo-link" href="https://github.com/nobrainerCODES/ecommerce-delivery-analytics">Code and full write-up on GitHub</a>
+      <a href="#recommendations">Jump to recommendations</a>
+    </div>
+  </header>
+
+  <div class="filters" role="group" aria-label="Filters">
+    <label>Customer state
+      <select id="f-state"><option value="ALL">All states</option></select>
+    </label>
+    <label>Purchase year
+      <span class="seg" id="f-year">
+        <button type="button" data-v="ALL" aria-pressed="true">All</button>
+        <button type="button" data-v="2017" aria-pressed="false">2017</button>
+        <button type="button" data-v="2018" aria-pressed="false">2018</button>
+      </span>
+    </label>
+    <button type="button" id="f-reset">Reset</button>
+    <span class="scope" id="scope-text"></span>
+  </div>
+
+  <div class="grid">
+    <div class="card span-6 hero">
+      <div class="hero-row"><div class="big" id="h-late"></div><div class="big-label">of delivered orders<br>arrived late</div></div>
+      <div class="hero-row"><div class="big" id="h-share"></div><div class="big-label">of all 1-star reviews<br>came from those late orders</div></div>
+    </div>
+    <div class="span-6 tiles">
+      <div class="card tile"><div class="label">Delivered orders</div><div class="value" id="t-orders"></div><div class="note" id="t-orders-note"></div></div>
+      <div class="card tile"><div class="label">Promised vs actual delivery</div><div class="value" id="t-days"></div><div class="note">average days from purchase</div></div>
+      <div class="card tile"><div class="label">Average review, on time</div><div class="value" id="t-rv-on"></div><div class="note" id="t-one-on"></div></div>
+      <div class="card tile"><div class="label">Average review, late</div><div class="value" id="t-rv-late"></div><div class="note" id="t-one-late"></div></div>
+    </div>
+
+    <div class="section-title">1. Customers grade the promise</div>
+    <div class="card span-7">
+      <h2>Reviews fall off a cliff the day the promise breaks</h2>
+      <p class="sub">Average review by when the order arrived compared with the promised date</p>
+      <div class="legend"><span class="key"><i style="background:var(--s1)"></i>On time or early</span><span class="key"><i style="background:var(--s2)"></i>Late</span></div>
+      <div id="c-cliff"></div>
+    </div>
+    <div class="card span-5 notes">
+      <h2>It is the promise, not the wait</h2>
+      <p class="sub">Regression on 95,824 reviewed orders, controlling for state, month and order value</p>
+      <div class="tile"><div class="value" id="m-penalty"></div><div class="note">stars lost when an order is late, at the same delivery time</div></div>
+      <div class="tile" style="margin-top:12px"><div class="value" id="m-perday"></div><div class="note">stars lost per extra day of waiting, if still on time</div></div>
+      <ul style="margin-top:14px">
+        <li id="m-equiv"></li>
+        <li id="m-repeat"></li>
+      </ul>
+    </div>
+
+    <div class="section-title">2. When and where it breaks</div>
+    <div class="card span-6">
+      <h2>Olist promised about twice the real delivery time</h2>
+      <p class="sub">Average days from purchase, by purchase month</p>
+      <div class="legend"><span class="key"><i class="line" style="background:var(--s1)"></i>Promised</span><span class="key"><i class="line" style="background:var(--s2)"></i>Actual</span></div>
+      <div id="c-days"></div>
+    </div>
+    <div class="card span-6">
+      <h2>Yet lateness came in waves</h2>
+      <p class="sub" id="c-waves-sub">Share of orders delivered after the promised date, by purchase month</p>
+      <div id="c-waves"></div>
+      <details><summary>View monthly data table</summary><div id="tbl-month"></div></details>
+    </div>
+    <div class="card span-6">
+      <h2>Late rate by customer state</h2>
+      <p class="sub">Click a bar to filter the page to that state</p>
+      <div id="c-states"></div>
+      <details><summary>View state data table</summary><div id="tbl-state"></div></details>
+    </div>
+    <div class="card span-6">
+      <h2>Score sellers on what they control</h2>
+      <p class="sub" id="c-sellers-sub"></p>
+      <div id="c-sellers"></div>
+      <p class="sub" style="margin-top:10px" id="c-sellers-note"></p>
+    </div>
+
+    <div class="section-title">3. What a longer promise buys</div>
+    <div class="card span-12">
+      <h2>Promise simulator</h2>
+      <p class="sub">Add extra days to every promise in the current filter. How many orders would still be late? Uses each order's real delivery date.</p>
+      <div class="sim-control">
+        <span>Extra days</span>
+        <input type="range" id="sim" min="0" max="10" step="1" value="0" aria-label="Extra promise days">
+        <output id="sim-out" for="sim">+0 days</output>
+      </div>
+      <div class="sim-top">
+        <div class="tile"><div class="label">Late rate</div><div class="value" id="s-late"></div></div>
+        <div class="tile"><div class="label">Average promise</div><div class="value" id="s-prom"></div></div>
+        <div class="tile"><div class="label">Late orders avoided</div><div class="value" id="s-avoid"></div></div>
+        <div class="tile"><div class="label">1-star reviews avoided (est.)</div><div class="value" id="s-stars"></div></div>
+      </div>
+      <div id="c-sim"></div>
+      <p class="sub" style="margin-top:8px" id="sim-note"></p>
+    </div>
+
+    <div class="section-title" id="recommendations">4. What to fix first</div>
+    <div class="card span-4 rec recs"><h3>Hold sellers to the ship-by deadline</h3>
+      <p id="r1-p"></p><div class="impact" id="r1-i"></div></div>
+    <div class="card span-4 rec"><h3>Add a holiday buffer to the promise</h3>
+      <p id="r2-p"></p><div class="impact" id="r2-i"></div></div>
+    <div class="card span-4 rec"><h3>Pick the everyday buffer on purpose</h3>
+      <p id="r3-p"></p><div class="impact" id="r3-i"></div></div>
+
+    <div class="card span-12 notes">
+      <h2>What I tested that did not work</h2>
+      <ul>
+        <li id="n1"></li>
+        <li id="n2"></li>
+        <li>Lateness is mostly on the carrier side. Late orders spent about 28 days with the carrier, compared with 8 days for on-time orders. The seller side added about 3 extra days.</li>
+        <li>Limits: this is observational data, so the review effect is a strong association with controls, not a controlled experiment. The seller handoff estimate assumes carrier time would not change if the seller shipped on time.</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>
+    Data: <a href="https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce">Brazilian E-Commerce Public Dataset by Olist</a> (CC BY-NC-SA 4.0). Analysis by Shraman Pandey. SQL in DuckDB, stats in Python (pandas, statsmodels). This page has no tracking and loads no outside scripts.
+  </footer>
+</div>
+<div class="tip" id="tip" role="status" aria-live="polite"></div>
+</div>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  "use strict";
+  const D = window.DASH;
+  const C = {}; D.cols.forEach((c, i) => C[c] = i);
+  const M = D.metrics;
+  const NS = "http://www.w3.org/2000/svg";
+  const state = { st: "ALL", yr: "ALL", buf: 0 };
+
+  // ---------- formatting ----------
+  const fmtInt = n => Math.round(n).toLocaleString("en-US");
+  const pct = (x, d = 1) => (x == null || isNaN(x)) ? "n/a" : (x * 100).toFixed(d) + "%";
+  const num = (x, d = 2) => (x == null || isNaN(x)) ? "n/a" : x.toFixed(d);
+  const monthLabel = m => { const [y, mo] = m.split("-"); return ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+mo - 1] + " " + y.slice(2); };
+  const setText = (id, t) => { document.getElementById(id).textContent = t; };
+
+  // ---------- data ----------
+  function filtered(opts = {}) {
+    return D.cells.filter(r =>
+      (opts.ignoreState || state.st === "ALL" || r[C.st] === state.st) &&
+      (state.yr === "ALL" || r[C.m].startsWith(state.yr)));
+  }
+  function total(rows) {
+    const t = { n: 0, late: 0, prom: 0, act: 0, rv_on: 0, rv_late: 0, sc_on: 0, sc_late: 0, one_on: 0, one_late: 0, missed: 0,
+      b_n: Array(8).fill(0), b_s: Array(8).fill(0), buf: Array(11).fill(0) };
+    for (const r of rows) {
+      for (const k of ["n","late","prom","act","rv_on","rv_late","sc_on","sc_late","one_on","one_late","missed"]) t[k] += r[C[k]];
+      for (let i = 0; i < 8; i++) { t.b_n[i] += r[C.b_n][i]; t.b_s[i] += r[C.b_s][i]; }
+      for (let i = 0; i < 11; i++) t.buf[i] += r[C.buf_late][i];
+    }
+    return t;
+  }
+  function byKey(rows, key) {
+    const g = new Map();
+    for (const r of rows) { const k = r[C[key]]; if (!g.has(k)) g.set(k, []); g.get(k).push(r); }
+    return [...g.entries()].map(([k, rs]) => [k, total(rs)]).sort((a, b) => a[0] < b[0] ? -1 : 1);
+  }
+
+  // ---------- tooltip ----------
+  const tip = document.getElementById("tip");
+  function showTip(evt, title, rows) {
+    tip.replaceChildren();
+    const t = document.createElement("div"); t.className = "t"; t.textContent = title; tip.appendChild(t);
+    for (const [label, value, color] of rows) {
+      const r = document.createElement("div"); r.className = "r";
+      if (color) { const i = document.createElement("i"); i.style.background = color; r.appendChild(i); }
+      const b = document.createElement("b"); b.textContent = value; r.appendChild(b);
+      const s = document.createElement("span"); s.textContent = label; s.style.color = "var(--ink-2)"; r.appendChild(s);
+      tip.appendChild(r);
+    }
+    let x, y;
+    if (evt.clientX != null && evt.type !== "focus") { x = evt.clientX; y = evt.clientY; }
+    else { const bb = evt.target.getBoundingClientRect(); x = bb.left + bb.width / 2; y = bb.top; }
+    const w = tip.offsetWidth || 180;
+    tip.style.left = Math.min(window.innerWidth - w - 8, x + 14) + "px";
+    tip.style.top = Math.max(8, y - 12 - tip.offsetHeight) + "px";
+    tip.style.opacity = 1;
+  }
+  const hideTip = () => { tip.style.opacity = 0; };
+
+  // ---------- svg helpers ----------
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function txt(parent, x, y, s, attrs = {}) { const t = el("text", Object.assign({ x, y }, attrs), parent); t.textContent = s; return t; }
+  function svgFor(id, h) {
+    const box = document.getElementById(id); box.replaceChildren();
+    const w = Math.max(280, box.clientWidth);
+    const s = el("svg", { width: w, height: h, viewBox: `0 0 ${w} ${h}`, role: "img" }, box);
+    return [s, w];
+  }
+  // rounded data-end, square at the baseline
+  function barPath(x, y, w, h, r = 4) {
+    if (h <= 0) return "";
+    r = Math.min(r, h, w / 2);
+    return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+  }
+  function hbarPath(x, y, w, h, r = 4) {
+    if (w <= 0) return "";
+    r = Math.min(r, w, h / 2);
+    return `M${x},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h - r}Q${x + w},${y + h} ${x + w - r},${y + h}H${x}Z`;
+  }
+  // clean axis: step is 1, 2 or 5 times a power of ten, so ticks read 0 / 2 / 4 / 6 / 8
+  function niceScale(max, target = 4) {
+    max = Math.max(max, 1e-9);
+    const raw = max / target, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 5, 10].map(m => m * mag).find(s => s >= raw - 1e-12);
+    const n = Math.max(1, Math.ceil(max / step - 1e-9));
+    return { top: step * n, n };
+  }
+  // month labels: always show the last month, then every k-th going back, so labels never collide
+  const showMonth = (i, len) => { const k = len > 12 ? 3 : (len > 6 ? 2 : 1); return (len - 1 - i) % k === 0; };
+  function yAxis(svg, L, R, T, H, max, ticks, fmt) {
+    const g = el("g", { class: "axis" }, svg);
+    for (let i = 0; i <= ticks; i++) {
+      const v = max * i / ticks, y = T + H - H * i / ticks;
+      el("line", { x1: L, x2: R, y1: y, y2: y, class: i === 0 ? "baseline" : "tick-line" }, g);
+      txt(g, L - 8, y + 4, fmt(v), { "text-anchor": "end" });
+    }
+  }
+  function bindTip(node, title, rows) {
+    node.setAttribute("tabindex", "0");
+    node.setAttribute("aria-label", title + ": " + rows.map(r => r[1] + " " + r[0]).join(", "));
+    node.addEventListener("pointermove", e => showTip(e, title, rows));
+    node.addEventListener("pointerleave", hideTip);
+    node.addEventListener("focus", e => showTip(e, title, rows));
+    node.addEventListener("blur", hideTip);
+  }
+
+  // ---------- charts ----------
+  function drawCliff(t) {
+    const [svg, w] = svgFor("c-cliff", 300);
+    const L = 36, R = w - 8, T = 18, H = 220;
+    yAxis(svg, L, R, T, H, 5, 5, v => v.toFixed(0));
+    const band = (R - L) / 8, bw = Math.min(24, band * 0.6);
+    const lab = el("g", { class: "axis" }, svg);
+    D.buckets.forEach((name, i) => {
+      const n = t.b_n[i], avg = n ? t.b_s[i] / n : null;
+      const x = L + band * i + (band - bw) / 2;
+      const words = name.split(" ");
+      const narrow = band < 62;  // on phones drop the word "days" so labels fit their column
+      const l1 = name === "On the day" ? "On the" : (narrow ? words[0] : words.slice(0, 2).join(" "));
+      const l2 = name === "On the day" ? "day" : words.slice(2).join(" ");
+      txt(lab, x + bw / 2, T + H + 18, l1, { "text-anchor": "middle" });
+      txt(lab, x + bw / 2, T + H + 33, l2, { "text-anchor": "middle" });
+      if (avg == null) return;
+      const h = H * avg / 5, y = T + H - h;
+      const p = el("path", { d: barPath(x, y, bw, h), fill: i >= 4 ? "var(--s2)" : "var(--s1)", class: "mark" }, svg);
+      bindTip(p, name, [["average review", num(avg)], ["reviewed orders", fmtInt(n)]]);
+      if ([0, 3, 4, 6].includes(i)) txt(svg, x + bw / 2, y - 6, num(avg), { class: "val", "text-anchor": "middle" });
+    });
+  }
+
+  function drawLines(id, months, series, yMax, fmt, h = 240) {
+    const [svg, w] = svgFor(id, h);
+    const L = 40, R = w - 30, T = 14, H = h - 50;
+    const sc = niceScale(Math.max(1, ...series.flatMap(s => s.values.filter(v => v != null))), 5);
+    yMax = sc.top;
+    yAxis(svg, L, R, T, H, yMax, sc.n, fmt);
+    if (!months.length) { txt(svg, (L + R) / 2, T + H / 2, "No orders in this filter", { class: "empty", "text-anchor": "middle" }); return; }
+    const step = months.length > 1 ? (R - L) / (months.length - 1) : 0;
+    const X = i => months.length > 1 ? L + step * i : (L + R) / 2;
+    const Y = v => T + H - H * Math.min(v, yMax) / yMax;
+    const lab = el("g", { class: "axis" }, svg);
+    months.forEach((m, i) => { if (showMonth(i, months.length)) txt(lab, X(i), T + H + 18, monthLabel(m), { "text-anchor": "middle" }); });
+    for (const s of series) {
+      const pts = s.values.map((v, i) => v == null ? null : [X(i), Y(v)]);
+      let d = "", pen = false;
+      pts.forEach(p => { if (!p) { pen = false; return; } d += (pen ? "L" : "M") + p[0] + "," + p[1]; pen = true; });
+      el("path", { d, fill: "none", stroke: s.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }, svg);
+      const lastI = s.values.length - 1;
+      if (s.values[lastI] != null) {
+        el("circle", { cx: X(lastI), cy: Y(s.values[lastI]), r: 4, fill: s.color, stroke: "var(--surface)", "stroke-width": 2 }, svg);
+        txt(svg, X(lastI) + 8, Y(s.values[lastI]) + 4, fmt(s.values[lastI]), { class: "val" });
+      }
+    }
+    // crosshair layer
+    const cross = el("line", { y1: T, y2: T + H, stroke: "var(--axis)", "stroke-width": 1, opacity: 0 }, svg);
+    const hit = el("rect", { x: L, y: T, width: R - L, height: H, fill: "transparent" }, svg);
+    hit.addEventListener("pointermove", e => {
+      const bb = svg.getBoundingClientRect();
+      const i = Math.max(0, Math.min(months.length - 1, Math.round((e.clientX - bb.left - L) / (step || 1))));
+      cross.setAttribute("x1", X(i)); cross.setAttribute("x2", X(i)); cross.setAttribute("opacity", 1);
+      showTip(e, monthLabel(months[i]), series.map(s => [s.name, s.values[i] == null ? "n/a" : fmt(s.values[i]), s.color]));
+    });
+    hit.addEventListener("pointerleave", () => { cross.setAttribute("opacity", 0); hideTip(); });
+  }
+
+  function drawWaves(months, totals) {
+    const [svg, w] = svgFor("c-waves", 240);
+    const L = 40, R = w - 8, T = 18, H = 190;
+    const rates = totals.map(t => t.n ? t.late / t.n : 0);
+    const sc = niceScale(Math.max(0.05, ...rates), 4), yMax = sc.top;
+    yAxis(svg, L, R, T, H, yMax, sc.n, v => (v * 100).toFixed(0) + "%");
+    if (!months.length) return;
+    const band = (R - L) / months.length, bw = Math.min(24, band * 0.62);
+    const top3 = new Set(M.waves.top3_months);
+    const lab = el("g", { class: "axis" }, svg);
+    months.forEach((m, i) => {
+      const x = L + band * i + (band - bw) / 2, h = H * rates[i] / yMax, y = T + H - h;
+      const hot = top3.has(m);
+      const p = el("path", { d: barPath(x, y, bw, h), fill: hot ? "var(--s2)" : "var(--muted-fill)", class: "mark" }, svg);
+      bindTip(p, monthLabel(m), [["late", pct(rates[i])], ["late orders", fmtInt(totals[i].late)], ["delivered orders", fmtInt(totals[i].n)]]);
+      if (hot && totals[i].n >= 30) txt(svg, x + bw / 2, y - 6, (rates[i] * 100).toFixed(0) + "%", { class: "val", "text-anchor": "middle" });
+      if (showMonth(i, months.length)) txt(lab, x + bw / 2, T + H + 18, monthLabel(m), { "text-anchor": "middle" });
+    });
+  }
+
+  function drawStates() {
+    const groups = byKey(filtered({ ignoreState: true }), "st").filter(([, t]) => t.n > 0);
+    groups.sort((a, b) => b[1].late / b[1].n - a[1].late / a[1].n);
+    const rowH = 17, h = groups.length * rowH + 30;
+    const [svg, w] = svgFor("c-states", h);
+    const L = 34, R = w - 46, T = 4;
+    const ssc = niceScale(Math.max(...groups.map(([, t]) => t.late / t.n)), 4), maxR = ssc.top;
+    const g = el("g", { class: "axis" }, svg);
+    for (let i = 0; i <= ssc.n; i++) {
+      const x = L + (R - L) * i / ssc.n;
+      el("line", { x1: x, x2: x, y1: T, y2: T + groups.length * rowH, class: i ? "tick-line" : "baseline" }, g);
+      txt(g, x, T + groups.length * rowH + 16, (maxR * i / ssc.n * 100).toFixed(0) + "%", { "text-anchor": "middle" });
+    }
+    groups.forEach(([st, t], i) => {
+      const r = t.late / t.n, y = T + i * rowH + 3, bh = rowH - 6, bwid = (R - L) * r / maxR;
+      const sel = state.st === st, dim = state.st !== "ALL" && !sel;
+      txt(svg, L - 6, y + bh - 1, st, { "text-anchor": "end", fill: sel ? "var(--ink)" : "var(--ink-2)", "font-size": 11.5, "font-weight": sel ? 650 : 400 });
+      const p = el("path", { d: hbarPath(L, y, Math.max(1, bwid), bh, 3), fill: dim ? "var(--muted-fill)" : "var(--s1)", class: "mark" }, svg);
+      p.style.cursor = "pointer";
+      bindTip(p, D.states[st] + " (" + st + ")", [["late", pct(r)], ["delivered orders", fmtInt(t.n)], ["avg promised days", num(t.prom / t.n, 1)]]);
+      p.addEventListener("click", () => setState(sel ? "ALL" : st));
+      p.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setState(sel ? "ALL" : st); } });
+      if (i < 3 || sel) txt(svg, L + bwid + 6, y + bh - 1, pct(r, 0), { class: "val", "font-size": 11 });
+    });
+    // table view
+    const tbl = document.createElement("table");
+    const hr = tbl.insertRow(); ["State", "Orders", "Late", "Avg promised", "Avg actual"].forEach(hd => { const th = document.createElement("th"); th.textContent = hd; hr.appendChild(th); });
+    groups.forEach(([st, t]) => { const r = tbl.insertRow(); [D.states[st] + " (" + st + ")", fmtInt(t.n), pct(t.late / t.n), num(t.prom / t.n, 1), num(t.act / t.n, 1)].forEach(v => { r.insertCell().textContent = v; }); });
+    document.getElementById("tbl-state").replaceChildren(tbl);
+  }
+
+  function drawSellers() {
+    const box = document.getElementById("c-sellers"); box.replaceChildren();
+    const w = Math.max(300, box.clientWidth), h = 250;
+    const svg = el("svg", { width: w, height: h, viewBox: `0 0 ${w} ${h}`, role: "img", "aria-label": "Two scatter plots comparing each seller's 2017 rate with their 2018 rate" }, box);
+    const panels = [
+      { title: "Late delivery rate", a: 0, b: 1, r: M.seller_habits.late_rate_corr },
+      { title: "Missed ship-by rate", a: 2, b: 3, r: M.seller_habits.missed_ship_by_corr },
+    ];
+    const pw = (w - 30) / 2;
+    panels.forEach((p, k) => {
+      const ox = k * (pw + 30), L = ox + 34, R = ox + pw - 4, T = 30, H = 170;
+      const vals = D.sellers.flatMap(s => [s[p.a], s[p.b]]);
+      const mx = niceScale(Math.max(...vals), 2).top;
+      txt(svg, ox, 12, p.title, { fill: "var(--ink)", "font-size": 13, "font-weight": 620 });
+      txt(svg, ox, 26, "r = " + p.r.toFixed(2) + (k ? ", a stable habit" : ", barely repeats"), { fill: "var(--ink-2)", "font-size": 12 });
+      const g = el("g", { class: "axis" }, svg);
+      for (let i = 0; i <= 2; i++) {
+        const v = mx * i / 2, x = L + (R - L) * i / 2, y = T + H - H * i / 2 + 10;
+        el("line", { x1: L, x2: R, y1: y, y2: y, class: i ? "tick-line" : "baseline" }, g);
+        el("line", { x1: x, x2: x, y1: T + 10, y2: T + H + 10, class: i ? "tick-line" : "baseline" }, g);
+        txt(g, L - 6, y + 4, (v * 100).toFixed(0) + "%", { "text-anchor": "end" });
+        txt(g, x, T + H + 26, (v * 100).toFixed(0) + "%", { "text-anchor": "middle" });
+      }
+      el("line", { x1: L, y1: T + H + 10, x2: R, y2: T + 10, stroke: "var(--axis)", "stroke-width": 1 }, svg);
+      D.sellers.forEach(s => {
+        const cx = L + (R - L) * s[p.a] / mx, cy = T + 10 + H - H * s[p.b] / mx;
+        const c = el("circle", { cx, cy, r: 4, fill: "var(--s1)", stroke: "var(--surface)", "stroke-width": 2, class: "mark" }, svg);
+        c.style.opacity = 0.85;
+      });
+      txt(svg, (L + R) / 2, T + H + 42, "2017 rate (x) vs same seller's 2018 rate (y)", { class: "axis", "text-anchor": "middle", fill: "var(--ink-3)", "font-size": 11.5 });
+    });
+  }
+
+  function drawSim(t) {
+    const [svg, w] = svgFor("c-sim", 220);
+    const L = 44, R = w - 16, T = 16, H = 160;
+    const rates = t.buf.map(v => t.n ? v / t.n : 0);
+    const sc = niceScale(Math.max(0.02, rates[0]), 4), yMax = sc.top;
+    yAxis(svg, L, R, T, H, yMax, sc.n, v => (v * 100).toFixed(0) + "%");
+    const X = i => L + (R - L) * i / 10, Y = v => T + H - H * v / yMax;
+    const lab = el("g", { class: "axis" }, svg);
+    for (let i = 0; i <= 10; i++) txt(lab, X(i), T + H + 18, "+" + i, { "text-anchor": "middle" });
+    txt(lab, (L + R) / 2, T + H + 36, "Extra days added to every promise", { "text-anchor": "middle" });
+    el("path", { d: rates.map((v, i) => (i ? "L" : "M") + X(i) + "," + Y(v)).join("") + `L${X(10)},${T + H}L${X(0)},${T + H}Z`, fill: "var(--s1-wash)" }, svg);
+    el("path", { d: rates.map((v, i) => (i ? "L" : "M") + X(i) + "," + Y(v)).join(""), fill: "none", stroke: "var(--s1)", "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+    const b = state.buf;
+    el("circle", { cx: X(b), cy: Y(rates[b]), r: 6, fill: "var(--s1)", stroke: "var(--surface)", "stroke-width": 2 }, svg);
+    txt(svg, X(b) + (b > 8 ? -10 : 10), Y(rates[b]) - 10, pct(rates[b]), { class: "val", "text-anchor": b > 8 ? "end" : "start" });
+    const hit = el("rect", { x: L, y: T, width: R - L, height: H, fill: "transparent" }, svg);
+    hit.addEventListener("pointermove", e => {
+      const bb = svg.getBoundingClientRect(); const i = Math.max(0, Math.min(10, Math.round((e.clientX - bb.left - L) / ((R - L) / 10))));
+      showTip(e, "+" + i + " days", [["late", pct(rates[i]), "var(--s1)"], ["late orders", fmtInt(t.buf[i])]]);
+    });
+    hit.addEventListener("pointerleave", hideTip);
+  }
+
+  // ---------- page ----------
+  function render() {
+    const rows = filtered();
+    const t = total(rows);
+    const all = total(D.cells);
+    const scopeName = (state.st === "ALL" ? "All states" : D.states[state.st]) + (state.yr === "ALL" ? ", Sept 2016 to Aug 2018" : ", orders placed in " + state.yr);
+    setText("scope-text", "Showing: " + scopeName);
+
+    const lateRate = t.n ? t.late / t.n : NaN;
+    const ones = t.one_on + t.one_late;
+    setText("h-late", pct(lateRate));
+    setText("h-share", ones ? pct(t.one_late / ones, 0) : "n/a");
+    setText("t-orders", fmtInt(t.n));
+    setText("t-orders-note", fmtInt(t.late) + " delivered late");
+    setText("t-days", t.n ? `${num(t.prom / t.n, 1)} vs ${num(t.act / t.n, 1)}` : "n/a");
+    setText("t-rv-on", t.rv_on ? num(t.sc_on / t.rv_on) + " ★" : "n/a");
+    setText("t-rv-late", t.rv_late ? num(t.sc_late / t.rv_late) + " ★" : "n/a");
+    setText("t-one-on", t.rv_on ? pct(t.one_on / t.rv_on, 0) + " were 1-star" : "");
+    setText("t-one-late", t.rv_late ? pct(t.one_late / t.rv_late, 0) + " were 1-star" : "");
+
+    drawCliff(t);
+
+    const monthly = byKey(rows, "m").filter(([m]) => m >= "2017-01" && m <= "2018-08");
+    const months = monthly.map(x => x[0]), mt = monthly.map(x => x[1]);
+    drawLines("c-days", months, [
+      { name: "promised days", color: "var(--s1)", values: mt.map(x => x.n ? x.prom / x.n : null) },
+      { name: "actual days", color: "var(--s2)", values: mt.map(x => x.n ? x.act / x.n : null) },
+    ], 50, v => v.toFixed(0));
+    drawWaves(months, mt);
+    setText("c-waves-sub", "Share of orders delivered after the promised date. Orange: the 3 worst months overall (" + pct(M.waves.top3_share_of_late, 0) + " of all late orders)");
+    const tbl = document.createElement("table");
+    const hr = tbl.insertRow(); ["Month", "Orders", "Late", "Promised days", "Actual days"].forEach(hd => { const th = document.createElement("th"); th.textContent = hd; hr.appendChild(th); });
+    monthly.forEach(([m, x]) => { const r = tbl.insertRow(); [monthLabel(m), fmtInt(x.n), pct(x.n ? x.late / x.n : NaN), num(x.prom / x.n, 1), num(x.act / x.n, 1)].forEach(v => { r.insertCell().textContent = v; }); });
+    document.getElementById("tbl-month").replaceChildren(tbl);
+
+    drawStates();
+
+    // simulator
+    const b = state.buf;
+    setText("sim-out", "+" + b + (b === 1 ? " day" : " days"));
+    const simRate = t.n ? t.buf[b] / t.n : NaN;
+    const avoided = t.buf[0] - t.buf[b];
+    const reviewShare = all.n ? (all.rv_on + all.rv_late) / all.n : 0;
+    const oneGap = (all.one_late / all.rv_late) - (all.one_on / all.rv_on);
+    setText("s-late", pct(simRate));
+    setText("s-prom", t.n ? num(t.prom / t.n + b, 1) + " days" : "n/a");
+    setText("s-avoid", fmtInt(avoided));
+    setText("s-stars", fmtInt(avoided * reviewShare * oneGap));
+    setText("sim-note", "1-star estimate: each avoided late order swaps the late 1-star rate (" + pct(all.one_late / all.rv_late, 0) + ") for the on-time rate (" + pct(all.one_on / all.rv_on, 0) + "). The cost is a longer promise at checkout, which this data cannot measure.");
+    drawSim(t);
+  }
+
+  function staticText() {
+    const rp = M.review_penalty, rr = M.repeat_purchase, sh = M.seller_habits, ho = M.handoff, hol = M.holiday, h17 = M.holiday_2017, sz = M.sizing, fb = M.formula_backtest;
+    setText("m-penalty", Math.abs(rp.late_penalty_stars).toFixed(2));
+    setText("m-perday", Math.abs(rp.per_extra_day_stars).toFixed(3));
+    setText("m-equiv", `Being late costs as much as about ${Math.round(rp.late_equals_this_many_extra_days)} extra days of waiting. 95% confidence interval for the late penalty: ${Math.abs(rp.late_penalty_ci95[1]).toFixed(2)} to ${Math.abs(rp.late_penalty_ci95[0]).toFixed(2)} stars.`);
+    setText("m-repeat", `Repeat buying is rare for everyone (${pct(rr.repeat_rate_overall)} buy again within 180 days). After controls, a late first order did not change it in a measurable way (p = ${rr.p_value.toFixed(2)}). The cost of lateness shows up in reviews.`);
+    setText("c-sellers-sub", `${sh.sellers} sellers with 30+ orders in both 2017 and 2018. Each dot is one seller. Dots near the diagonal line repeated their 2017 rate in 2018.`);
+    setText("c-sellers-note", `A seller's late rate barely carried over (r = ${sh.late_rate_corr.toFixed(2)}), because most delay happens with the carrier. Missing the ship-by deadline did carry over (r = ${sh.missed_ship_by_corr.toFixed(2)}). That is the fair metric to hold sellers to.`);
+    setText("r1-p", `When a seller missed the ship-by deadline (${pct(ho.missed_share, 0)} of orders), the order was late ${pct(ho.late_rate_missed, 0)} of the time, versus ${pct(ho.late_rate_on_time_handoff, 0)} otherwise. It is a stable seller habit, so a scorecard on it targets the right sellers.`);
+    r1.replaceChildren(...impact(`${fmtInt(ho.late_orders_avoided)} fewer late orders`, ` (${pct(ho.share_of_late_avoided, 0)}) and about ${fmtInt(sz.ship_by_compliance.one_star_reviews_avoided)} fewer 1-star reviews, if every seller had shipped on time.`));
+    setText("r2-p", `The 2017 holiday rush (Nov 20 to Dec 31) ran ${pct(h17.window_late_rate, 0)} late versus ${pct(h17.rest_of_2017_late_rate, 0)} the rest of the year. The rush is on the calendar, so the promise can stretch ahead of time.`);
+    r2.replaceChildren(...impact(`${fmtInt(hol.late_orders_avoided_holiday)} fewer late orders`, ` with +${hol.buffer_days} days in the window only. The same cost spread over the whole year saves ${fmtInt(hol.late_orders_avoided_same_cost_year_round)}.`));
+    setText("r3-p", `A route-based formula did not beat Olist's own estimate in a 2018 backtest. So the lever is the size of the buffer, not a new formula. Use the simulator above to choose a target late rate.`);
+    r3.replaceChildren(...impact(`About ${M.buffer_2018.pts_per_day_first_3.toFixed(1)} points`, ` lower late rate for each extra promised day (first 3 days, 2018 orders: ${pct(M.buffer_2018.late_rate_0)} at +0, ${pct(M.buffer_2018.late_rate_3)} at +3).`));
+    setText("n1", `A route-based promise formula (the p-th percentile of past delivery times per route). To hit a 5% late rate it needed ${fb.days_needed_for_5pct_late["Route percentile rule"].toFixed(1)} promised days on average, versus ${fb.days_needed_for_5pct_late["Olist promise + buffer"].toFixed(1)} for Olist's estimate plus a flat buffer.`);
+    setText("n2", `Late deliveries and repeat buying. The raw gap (${pct(rr.repeat_rate_late)} vs ${pct(rr.repeat_rate_on_time)}) shrank to ${rr.controlled_effect_pts.toFixed(2)} points after controlling for state, month and order value, and was not statistically significant.`);
+  }
+  const r1 = document.getElementById("r1-i"), r2 = document.getElementById("r2-i"), r3 = document.getElementById("r3-i");
+  function impact(bold, rest) { const b = document.createElement("b"); b.textContent = bold; return [b, document.createTextNode(rest)]; }
+
+  function setState(st) { state.st = st; document.getElementById("f-state").value = st; render(); }
+
+  // filters
+  const sel = document.getElementById("f-state");
+  Object.keys(D.states).sort((a, b) => D.states[a].localeCompare(D.states[b])).forEach(k => {
+    const o = document.createElement("option"); o.value = k; o.textContent = D.states[k] + " (" + k + ")"; sel.appendChild(o);
+  });
+  sel.addEventListener("change", () => setState(sel.value));
+  document.querySelectorAll("#f-year button").forEach(btn => btn.addEventListener("click", () => {
+    state.yr = btn.dataset.v;
+    document.querySelectorAll("#f-year button").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+    render();
+  }));
+  document.getElementById("f-reset").addEventListener("click", () => {
+    state.yr = "ALL"; state.buf = 0; document.getElementById("sim").value = 0;
+    document.querySelectorAll("#f-year button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.v === "ALL")));
+    setState("ALL");
+  });
+  document.getElementById("sim").addEventListener("input", e => { state.buf = +e.target.value; render(); });
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { render(); drawSellers(); }, 120); });
+
+  staticText();
+  render();
+  drawSellers();
+})();
+</script>
+</body>
+</html>
